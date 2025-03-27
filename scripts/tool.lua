@@ -15,12 +15,23 @@ function isBuffer(entity)
     entity.prototype.logistic_mode == "buffer"
 end
 
--- Adds ingredients from the entity's current recipe.
-function addIngredients(requests, entity)
-  if entity.prototype.crafting_categories and entity.get_recipe() then
-    for _, v in pairs(entity.get_recipe().ingredients) do
+function isStorage(entity)
+  return entity.type == "logistic-container" and
+    entity.prototype.logistic_mode == "storage"
+end
+
+-- Adds ingredients from the encraftertity's current recipe.
+function addIngredients(requests, crafter)
+  if crafter.prototype.crafting_categories and crafter.get_recipe() then
+    local _, quality = crafter.get_recipe()
+    local stackSize = #crafter.get_recipe().products > 0 and prototypes.item[crafter.get_recipe().products[1].name].stack_size or 10
+    for _, v in pairs(crafter.get_recipe().ingredients) do
       if (v.type == "item") then
-        requests[v.name] = (requests[v.name] or 0) + (entity.crafting_speed * v.amount)
+        requests[v.name] = (requests[v.name] or { rawAmount = 0, amountPerSec = 0, amountPerStack = 0 })
+        requests[v.name].quality = quality
+        requests[v.name].rawAmount = requests[v.name].rawAmount + v.amount
+        requests[v.name].amountPerStack = requests[v.name].amountPerStack + stackSize * v.amount
+        requests[v.name].amountPerSec = requests[v.name].amountPerSec + crafter.crafting_speed * v.amount /  crafter.get_recipe().energy
       end
     end
   end
@@ -30,7 +41,7 @@ end
 function addLabCycle(requests, entity)
   if entity.prototype.lab_inputs then
     for _, v in pairs(entity.prototype.lab_inputs) do
-      requests[v] = 6 -- six is good, how about six?
+      requests[v.name] = { quality = nil, rawAmount = 6, amountPerSec = 6, amountPerStack = 0 } -- six is good, how about six?
     end
   end
 end
@@ -49,7 +60,7 @@ function setRequester(player, chest, requests)
   local nextSlot = 1
   for itemName, amountConsumed in pairs(requests) do
     local amount = getRequesterAmount(player, itemName, amountConsumed)
-    lsection.set_slot(nextSlot, { value = itemName, min = amount })
+    lsection.set_slot(nextSlot, { value = { type = "item", name = itemName, quality = amountConsumed.quality }, min = amount })
     debug("setting requester slot to " .. itemName .. " = " .. amount)
     nextSlot = nextSlot + 1
   end
@@ -57,22 +68,24 @@ function setRequester(player, chest, requests)
   chest.request_from_buffers = getRequestersFromBuffers(player)
 end
 
+-- TODO: Rename. Changed to connect crafter-chest instead of inserter-chest.
 function setInserter(player, inserter)
-  if inserter.get_control_behavior() and getInsertersSkipExisting(player) then return end
-
   local crafter = inserter.pickup_target
+  if crafter.get_control_behavior() and getInsertersSkipExisting(player) then return end
+
   if crafter.prototype.crafting_categories and crafter.get_recipe() and #crafter.get_recipe().products > 0 then
     local itemName = crafter.get_recipe().products[1].name
+    local _, quality = crafter.get_recipe()
     local amount = getInserterAmount(player, itemName)
-    local cb = inserter.get_or_create_control_behavior()
+    local cb = crafter.get_or_create_control_behavior()
     local condition = {
       comparator = "<",
-      first_signal = { type = "item", name = itemName },
+      first_signal = { type = "item", name = itemName, quality = quality.name },
       constant = amount,
     }
 
     if getInsertersConnectToChest(player) then
-      inserter.get_wire_connector(defines.wire_connector_id.circuit_green, true)
+      crafter.get_wire_connector(defines.wire_connector_id.circuit_green, true)
         .connect_to(inserter.drop_target.get_wire_connector(defines.wire_connector_id.circuit_green, true))
 
       cb.connect_to_logistic_network = false
@@ -81,6 +94,11 @@ function setInserter(player, inserter)
       cb.logistic_condition = nil
       debug("setting circuit condition to " .. itemName .. " < " .. amount)
     else
+      local connector = crafter.get_wire_connector(defines.wire_connector_id.circuit_green, false)
+      if connector then
+        connector.disconnect_from(inserter.drop_target.get_wire_connector(defines.wire_connector_id.circuit_green, true))
+      end
+
       cb.connect_to_logistic_network = true
       cb.circuit_enable_disable = false
       cb.circuit_condition = nil
@@ -102,13 +120,29 @@ function setBuffer(player, inserter)
   if crafter.prototype.crafting_categories and crafter.get_recipe() and #crafter.get_recipe().products > 0 then
     local itemName = crafter.get_recipe().products[1].name
     local amount = getBufferAmount(player, itemName)
+    local _, quality = crafter.get_recipe()
 
     while lp.sections_count > 0 do
       lp.remove_section(1)
     end
     local lsection = lp.add_section()
-    lsection.set_slot(1, { value = itemName, min = amount })
+    lsection.set_slot(1, { value = { type = "item", name = itemName, quality = quality }, min = amount })
     debug("setting buffer slot to " .. itemName .. " = " .. amount)
+  end
+end
+
+-- TODO: Separate settings from Buffer.
+function setStorageFilter(player, inserter)
+  local chest  = inserter.drop_target
+  if not isStorage(chest) then return end
+  if chest.storage_filter ~= nil and getBuffersSkipExisting(player) then return end
+
+  local crafter = inserter.pickup_target
+  if crafter.prototype.crafting_categories and crafter.get_recipe() and #crafter.get_recipe().products > 0 then
+    local itemName = crafter.get_recipe().products[1].name
+    local _, quality = crafter.get_recipe()
+    chest.storage_filter = { name = itemName, quality = quality }
+    debug("setting storage filter to " .. itemName)
   end
 end
 
@@ -150,6 +184,9 @@ script.on_event(defines.events.on_player_selected_area, function(event)
     for _, inserter in pairs(inserters) do
       setBuffer(player, inserter)
     end
+  end
+  for _, inserter in pairs(inserters) do
+    setStorageFilter(player, inserter)
   end
 end)
 

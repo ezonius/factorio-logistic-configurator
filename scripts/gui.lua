@@ -3,7 +3,7 @@ local math = require('__kry_stdlib__/stdlib/utils/math')
 require('util')
 
 function GUI(player)
-  return player.gui.left.zyLCFrame
+  return player.gui.screen.zyLCFrame
 end
 function PData(player)
   global = global or {}
@@ -13,8 +13,10 @@ function PData(player)
 end
 
 function getRequestersEnabled(player) return GUI(player).requestersCB.state end
+function getRequestersSetMin(player) return GUI(player).requesters.minmax.minCB.state and GUI(player).requesters.minmax.min.text or 0 end
+function getRequestersSetMax(player) return GUI(player).requesters.minmax.maxCB.state and GUI(player).requesters.minmax.max.text or 1e100 end
 function getRequestersSetMultiple(player) return GUI(player).requesters.set.multiple.text end
--- 1="one", 2=stackSize, 3=amountPerSec
+-- 1="one", 2=stackSize, 3=rawAmount, 4=amountPerStack, 5=amountPerSec
 function getRequestersSetMultiplyBy(player) return GUI(player).requesters.set.multiplyBy.selected_index end
 function getRequestersRound(player) return GUI(player).requesters.round.enabledCB.state end
 -- 1="one", 2=stackSize
@@ -40,8 +42,11 @@ function getRequesterAmount(player, itemName, amountConsumed)
   local baseAmount =
      multiplyBy == 1 and 1
      or multiplyBy == 2 and stackSize
-     or amountConsumed
+     or multiplyBy == 3 and amountConsumed.rawAmount
+     or amountConsumed.amountPerSec
   local amount = baseAmount * getRequestersSetMultiple(player)
+  amount = math.max(amount, getRequestersSetMin(player))
+  amount = math.min(amount, getRequestersSetMax(player))
   if getRequestersRound(player) then
     local roundTo = getRequestersRoundTo(player)
     local roundToAmount = roundTo == 1 and 1 or stackSize
@@ -67,7 +72,7 @@ function getBufferAmount(player, itemName)
 end
 
 function buildGui(player)
-  player.gui.left.add {
+  player.gui.screen.add {
     type = "frame",
     name = "zyLCFrame",
     direction = "vertical",
@@ -110,8 +115,43 @@ function buildGui(player)
       set.add {
         type = "drop-down",
         name = "multiplyBy",
-        items = { { "zy-LCFrame.timesOne" }, { "zy-LCFrame.stackSize" }, { "zy-LCFrame.consumedPerSec" }  },
+        -- TODO: min/mix, remove per stack
+        items = { { "zy-LCFrame.timesOne" }, { "zy-LCFrame.stackSize" }, { "zy-LCFrame.consumedPerCraft" }, { "zy-LCFrame.consumedPerSec" }  },
         selected_index = 3,
+      }
+    end
+    do
+      local minmax = flow.add {
+        type = "flow",
+        name = "minmax",
+        direction = "horizontal",
+      }
+      minmax.add {
+        type = "checkbox",
+        name = "minCB",
+        caption = { "zy-LCFrame.minmaxMinCB" },
+        state = false,
+      }
+      minmax.add {
+        type = "textfield",
+        name = "min",
+        numeric = true,
+        allow_decimal = false,
+        text = "1",
+        style = "zy-LCFrame-multiple",
+      }
+      minmax.add {
+        type = "checkbox",
+        name = "maxCB",
+        caption = { "zy-LCFrame.minmaxMaxCB" },
+        state = false,
+      }
+      minmax.add {
+        type = "textfield",
+        name = "max",
+        numeric = true,
+        text = "1000",
+        style = "zy-LCFrame-multiple",
       }
     end
     do
