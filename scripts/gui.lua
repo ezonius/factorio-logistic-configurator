@@ -6,10 +6,10 @@ function GUI(player)
   return player.gui.screen.zyLCFrame
 end
 function PData(player)
-  global = global or {}
-  global.players = global.players or {}
-  global.players[player.name] = global.players[player.name] or {}
-  return global.players[player.name]
+  -- global = global or {}
+  storage.players = storage.players or {}
+  storage.players[player.name] = storage.players[player.name] or {}
+  return storage.players[player.name]
 end
 
 function getRequestersEnabled(player) return GUI(player).requestersCB.state end
