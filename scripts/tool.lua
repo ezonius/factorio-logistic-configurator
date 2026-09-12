@@ -23,15 +23,20 @@ end
 -- Adds ingredients from the encraftertity's current recipe.
 function addIngredients(requests, crafter)
   if crafter.prototype.crafting_categories and crafter.get_recipe() then
-    local _, quality = crafter.get_recipe()
-    local stackSize = #crafter.get_recipe().products > 0 and prototypes.item[crafter.get_recipe().products[1].name].stack_size or 10
-    for _, v in pairs(crafter.get_recipe().ingredients) do
+    local recipe, quality = crafter.get_recipe()
+    local stackSize = 10
+    local products = recipe.products
+    if #products > 0 and products[1].type == "item" then
+      local product = prototypes.item[products[1].name]
+      if product then stackSize = product.stack_size end
+    end
+    for _, v in pairs(recipe.ingredients) do
       if (v.type == "item") then
         requests[v.name] = (requests[v.name] or { rawAmount = 0, amountPerSec = 0, amountPerStack = 0 })
         requests[v.name].quality = quality
         requests[v.name].rawAmount = requests[v.name].rawAmount + v.amount
         requests[v.name].amountPerStack = requests[v.name].amountPerStack + stackSize * v.amount
-        requests[v.name].amountPerSec = requests[v.name].amountPerSec + crafter.crafting_speed * v.amount /  crafter.get_recipe().energy
+        requests[v.name].amountPerSec = requests[v.name].amountPerSec + crafter.crafting_speed * v.amount /  recipe.energy
       end
     end
   end
@@ -73,9 +78,9 @@ function setInserter(player, inserter)
   local crafter = inserter.pickup_target
   if crafter.get_control_behavior() and getInsertersSkipExisting(player) then return end
 
-  if crafter.prototype.crafting_categories and crafter.get_recipe() and #crafter.get_recipe().products > 0 then
-    local itemName = crafter.get_recipe().products[1].name
-    local _, quality = crafter.get_recipe()
+  local recipe, quality = crafter.get_recipe()
+  if crafter.prototype.crafting_categories and recipe and #recipe.products > 0 and recipe.products[1].type == "item" then
+    local itemName = recipe.products[1].name
     local amount = getInserterAmount(player, itemName)
     local cb = crafter.get_or_create_control_behavior()
     local condition = {
@@ -117,10 +122,10 @@ function setBuffer(player, inserter)
   if lp.sections_count > 0 and getBuffersSkipExisting(player) then return end
 
   local crafter = inserter.pickup_target
-  if crafter.prototype.crafting_categories and crafter.get_recipe() and #crafter.get_recipe().products > 0 then
-    local itemName = crafter.get_recipe().products[1].name
+  local recipe, quality = crafter.get_recipe()
+  if crafter.prototype.crafting_categories and recipe and #recipe.products > 0 and recipe.products[1].type == "item" then
+    local itemName = recipe.products[1].name
     local amount = getBufferAmount(player, itemName)
-    local _, quality = crafter.get_recipe()
 
     while lp.sections_count > 0 do
       lp.remove_section(1)
@@ -138,9 +143,9 @@ function setStorageFilter(player, inserter)
   if chest.storage_filter ~= nil and getBuffersSkipExisting(player) then return end
 
   local crafter = inserter.pickup_target
-  if crafter.prototype.crafting_categories and crafter.get_recipe() and #crafter.get_recipe().products > 0 then
-    local itemName = crafter.get_recipe().products[1].name
-    local _, quality = crafter.get_recipe()
+  local recipe, quality = crafter.get_recipe()
+  if crafter.prototype.crafting_categories and recipe and #recipe.products > 0 and recipe.products[1].type == "item" then
+    local itemName = recipe.products[1].name
     chest.storage_filter = { name = itemName, quality = quality }
     debug("setting storage filter to " .. itemName)
   end

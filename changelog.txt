@@ -1,3 +1,8 @@
+ ---------------------------------------------------------------------------------------------------
+Version: 1.1.4
+Date: 2026-09-12
+  - Fixed crash when selecting a crafter with a recipe producing a fluid (e.g. Sulfuric Acid).
+  - Fixed crash when configuring inserters/buffers/storage chests for a crafter with a fluid product (e.g. Sulfuric Acid).
 ---------------------------------------------------------------------------------------------------
 Version: 1.1.3
 Date: 2026-07-08
