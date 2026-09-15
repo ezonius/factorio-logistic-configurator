@@ -44,9 +44,10 @@ end
 
 -- Adds science packs for a lab.
 function addLabCycle(requests, entity)
+  -- lab_inputs is an array of item prototype names (strings) in 2.x
   if entity.prototype.lab_inputs then
-    for _, v in pairs(entity.prototype.lab_inputs) do
-      requests[v.name] = { quality = nil, rawAmount = 6, amountPerSec = 6, amountPerStack = 0 } -- six is good, how about six?
+    for _, itemName in pairs(entity.prototype.lab_inputs) do
+      requests[itemName] = { quality = "normal", rawAmount = 6, amountPerSec = 6, amountPerStack = 0 } -- six is good, how about six?
     end
   end
 end
@@ -65,7 +66,7 @@ function setRequester(player, chest, requests)
   local nextSlot = 1
   for itemName, amountConsumed in pairs(requests) do
     local amount = getRequesterAmount(player, itemName, amountConsumed)
-    lsection.set_slot(nextSlot, { value = { type = "item", name = itemName, quality = amountConsumed.quality }, min = amount })
+    lsection.set_slot(nextSlot, { value = { type = "item", name = itemName, quality = amountConsumed.quality or "normal" }, min = amount })
     debug("setting requester slot to " .. itemName .. " = " .. amount)
     nextSlot = nextSlot + 1
   end

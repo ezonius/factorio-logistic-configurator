@@ -1,8 +1,10 @@
- ---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
 Version: 1.1.4
-Date: 2026-09-12
+Date: 2026-09-15
   - Fixed crash when selecting a crafter with a recipe producing a fluid (e.g. Sulfuric Acid).
   - Fixed crash when configuring inserters/buffers/storage chests for a crafter with a fluid product (e.g. Sulfuric Acid).
+  - Fixed crash when selecting a lab with a requester chest (lab_inputs is now an array of item name strings in Factorio 2.1).
+  - Fixed crash "Can't specify non zero request with non trivial item filter condition" when lab inputs had no quality specified (now defaults to normal quality).
 ---------------------------------------------------------------------------------------------------
 Version: 1.1.3
 Date: 2026-07-08
